@@ -1,0 +1,67 @@
+gitlab-postgresql:
+  container_name: gitlab-postgresql
+  restart: always
+  image: postgres:9.6.9-alpine
+  net: ${CUSTOM_NETWORK_NAME}
+  expose:
+    - "5432"
+  environment:
+    - POSTGRES_USER=gitlab
+    - POSTGRES_PASSWORD=gitlab
+    - POSTGRES_DB=gitlabhq-production
+
+gitlab:
+  container_name: gitlab
+  restart: always
+  image: accenture/adop-gitlab:0.1.0
+  links:
+    - gitlab-postgresql:postgresql
+    - gitlab-redis:redis
+  net: ${CUSTOM_NETWORK_NAME}
+  expose:
+    - "80"
+    - "22"
+  environment:
+    INITIAL_ADMIN_USER: ${INITIAL_ADMIN_USER}
+    INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD_PLAIN}
+    JENKINS_USER: "jenkins"
+    JENKINS_PASSWORD: ${PASSWORD_JENKINS}
+    GITLAB_OMNIBUS_CONFIG: |
+     external_url "${PROTO}://${TARGET_HOST}/gitlab"
+     postgresql['enable'] = false
+     gitlab_rails['db_username'] = "gitlab"
+     gitlab_rails['db_password'] = "gitlab"
+     gitlab_rails['db_host'] = "gitlab-postgresql"
+     gitlab_rails['db_port'] = "5432"
+     gitlab_rails['db_database'] = "gitlabhq-production"
+     gitlab_rails['db_adapter'] = 'postgresql'
+     gitlab_rails['db_encoding'] = 'utf8'
+     # Redis Configuration
+     redis['enable'] = false
+     gitlab_rails['redis_host'] = 'gitlab-redis'
+     gitlab_rails['redis_port'] = '6379'
+     # LDAP Configuration
+     gitlab_rails['ldap_enabled'] = true
+     gitlab_rails['ldap_servers'] = YAML.load <<-'EOS'
+       main:
+         label: 'LDAP'
+         host: 'ldap'
+         port: 389
+         uid: 'uid'
+         method: 'plain'
+         bind_dn: '${LDAP_MANAGER_DN}'
+         password: '${LDAP_PWD}'
+         active_directory: true
+         allow_username_or_email_login: false
+         block_auto_created_users: false
+         base: '${LDAP_FULL_DOMAIN}'
+         signin_enabled: false
+     EOS
+
+gitlab-redis:
+  container_name: gitlab-redis
+  restart: always
+  image: redis:3.2.12-alpine
+  net: ${CUSTOM_NETWORK_NAME}
+  expose:
+    - "6379"
