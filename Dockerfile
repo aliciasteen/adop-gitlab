@@ -1,4 +1,4 @@
-FROM gitlab/gitlab-ce:11.4.3-ce.0
+FROM gitlab/gitlab-ce:11.4.5-ce.0
 
 LABEL maintainer="jonathan.e.jarvis@accenture.com"
 
